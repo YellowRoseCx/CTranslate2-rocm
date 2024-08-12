@@ -1,126 +1,103 @@
-[![CI](https://github.com/OpenNMT/CTranslate2/workflows/CI/badge.svg)](https://github.com/OpenNMT/CTranslate2/actions?query=workflow%3ACI) [![PyPI version](https://badge.fury.io/py/ctranslate2.svg)](https://badge.fury.io/py/ctranslate2) [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://opennmt.net/CTranslate2/) [![Gitter](https://badges.gitter.im/OpenNMT/CTranslate2.svg)](https://gitter.im/OpenNMT/CTranslate2?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge) [![Forum](https://img.shields.io/discourse/status?server=https%3A%2F%2Fforum.opennmt.net%2F)](https://forum.opennmt.net/)
+# ROCm CT2
 
-# CTranslate2
+## Install Guide
 
-CTranslate2 is a C++ and Python library for efficient inference with Transformer models.
+These install instructions are for https://hub.docker.com/r/rocm/pytorch. They should mostly work for system installs as well, but then you'll have to change install directories and make sure all dependencies are installed (in the image they are already present in the conda env)
 
-The project implements a custom runtime that applies many performance optimization techniques such as weights quantization, layers fusion, batch reordering, etc., to [accelerate and reduce the memory usage](#benchmarks) of Transformer models on CPU and GPU.
-
-The following model types are currently supported:
-
-* Encoder-decoder models: Transformer base/big, M2M-100, NLLB, BART, mBART, Pegasus, T5, Whisper
-* Decoder-only models: GPT-2, GPT-J, GPT-NeoX, OPT, BLOOM, MPT, Llama, Mistral, Gemma, CodeGen, GPTBigCode, Falcon
-* Encoder-only models: BERT, DistilBERT, XLM-RoBERTa
-
-Compatible models should be first converted into an optimized model format. The library includes converters for multiple frameworks:
-
-* [OpenNMT-py](https://opennmt.net/CTranslate2/guides/opennmt_py.html)
-* [OpenNMT-tf](https://opennmt.net/CTranslate2/guides/opennmt_tf.html)
-* [Fairseq](https://opennmt.net/CTranslate2/guides/fairseq.html)
-* [Marian](https://opennmt.net/CTranslate2/guides/marian.html)
-* [OPUS-MT](https://opennmt.net/CTranslate2/guides/opus_mt.html)
-* [Transformers](https://opennmt.net/CTranslate2/guides/transformers.html)
-
-The project is production-oriented and comes with [backward compatibility guarantees](https://opennmt.net/CTranslate2/versioning.html), but it also includes experimental features related to model compression and inference acceleration.
-
-## Key features
-
-* **Fast and efficient execution on CPU and GPU**<br/>The execution [is significantly faster and requires less resources](#benchmarks) than general-purpose deep learning frameworks on supported models and tasks thanks to many advanced optimizations: layer fusion, padding removal, batch reordering, in-place operations, caching mechanism, etc.
-* **Quantization and reduced precision**<br/>The model serialization and computation support weights with [reduced precision](https://opennmt.net/CTranslate2/quantization.html): 16-bit floating points (FP16), 16-bit brain floating points (BF16), 16-bit integers (INT16), and 8-bit integers (INT8).
-* **Multiple CPU architectures support**<br/>The project supports x86-64 and AArch64/ARM64 processors and integrates multiple backends that are optimized for these platforms: [Intel MKL](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onemkl.html), [oneDNN](https://github.com/oneapi-src/oneDNN), [OpenBLAS](https://www.openblas.net/), [Ruy](https://github.com/google/ruy), and [Apple Accelerate](https://developer.apple.com/documentation/accelerate).
-* **Automatic CPU detection and code dispatch**<br/>One binary can include multiple backends (e.g. Intel MKL and oneDNN) and instruction set architectures (e.g. AVX, AVX2) that are automatically selected at runtime based on the CPU information.
-* **Parallel and asynchronous execution**<br/>Multiple batches can be processed in parallel and asynchronously using multiple GPUs or CPU cores.
-* **Dynamic memory usage**<br/>The memory usage changes dynamically depending on the request size while still meeting performance requirements thanks to caching allocators on both CPU and GPU.
-* **Lightweight on disk**<br/>Quantization can make the models 4 times smaller on disk with minimal accuracy loss.
-* **Simple integration**<br/>The project has few dependencies and exposes simple APIs in [Python](https://opennmt.net/CTranslate2/python/overview.html) and C++ to cover most integration needs.
-* **Configurable and interactive decoding**<br/>[Advanced decoding features](https://opennmt.net/CTranslate2/decoding.html) allow autocompleting a partial sequence and returning alternatives at a specific location in the sequence.
-* **Support tensor parallelism for distributed inference**<br/>Very large model can be split into multiple GPUs. Following this [documentation](docs/parallel.md#model-and-tensor-parallelism) to set up the required environment.
-
-Some of these features are difficult to achieve with standard deep learning frameworks and are the motivation for this project.
-
-## Installation and usage
-
-CTranslate2 can be installed with pip:
+after following the guide in https://hub.docker.com/r/rocm/pytorch (tested for latest 9e1748e5b (**ROCm 6.2**))
 
 ```bash
-pip install ctranslate2
+#init conda
+conda init
+bash
+conda activate py_3.9
 ```
 
-The Python module is used to convert models and can translate or generate text with few lines of code:
-
-```python
-translator = ctranslate2.Translator(translation_model_path)
-translator.translate_batch(tokens)
-
-generator = ctranslate2.Generator(generation_model_path)
-generator.generate_batch(start_tokens)
+```bash
+git clone https://github.com/arlo-phoenix/CTranslate2-rocm.git --recurse-submodules
+cd CTranslate2-rocm
+#export PYTORCH_ROCM_ARCH=gfx1030 #optionally set this only to your ROCm arch to speed up compiling. You can find it with rocminfo | grep gfx
+CLANG_CMAKE_CXX_COMPILER=clang++ CXX=clang++ HIPCXX="$(hipconfig -l)/clang" HIP_PATH="$(hipconfig -R)"     cmake -S . -B build -DWITH_MKL=OFF -DWITH_HIP=ON -DCMAKE_HIP_ARCHITECTURES=$PYTORCH_ROCM_ARCH -DBUILD_TESTS=ON -DWITH_CUDNN=ON
+cmake --build build -- -j16
+cd build
+cmake --install . --prefix $CONDA_PREFIX #or just sudo make install if not using conda env
+sudo ldconfig
+cd ../python
+pip install -r install_requirements.txt
+python setup.py bdist_wheel
+pip install dist/*.whl
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/
 ```
 
-See the [documentation](https://opennmt.net/CTranslate2) for more information and examples.
+## Running tests / debugging issues
 
-## Benchmarks
+### Tests
 
-We translate the En->De test set *newstest2014* with multiple models:
+In CT2 project root folder:
 
-* [OpenNMT-tf WMT14](https://opennmt.net/Models-tf/#translation): a base Transformer trained with OpenNMT-tf on the WMT14 dataset (4.5M lines)
-* [OpenNMT-py WMT14](https://opennmt.net/Models-py/#translation): a base Transformer trained with OpenNMT-py on the WMT14 dataset (4.5M lines)
-* [OPUS-MT](https://github.com/Helsinki-NLP/OPUS-MT-train/tree/master/models/en-de#opus-2020-02-26zip): a base Transformer trained with Marian on all OPUS data available on 2020-02-26 (81.9M lines)
+```bash
+./build/tests/ctranslate2_test ./tests/data/ --gtest_filter=*CUDA*:-*bfloat16*
+```
+for me only some int8 test failed (I think that test shouldn't even be run for CUDA, but didn't check too deeply. The guard is from CT2 itself so it's supposed to fail)
 
-The benchmark reports the number of target tokens generated per second (higher is better). The results are aggregated over multiple runs. See the [benchmark scripts](tools/benchmark) for more details and reproduce these numbers.
+### Checking that all libraries are found
 
-**Please note that the results presented below are only valid for the configuration used during this benchmark: absolute and relative performance may change with different settings.**
+`ld -lctranslate2 --verbose` (ignore warnings, only important thing is that it doesn't find link errors)
 
-#### CPU
+### BF16 issues
 
-| | Tokens per second | Max. memory | BLEU |
-| --- | --- | --- | --- |
-| **OpenNMT-tf WMT14 model** | | | |
-| OpenNMT-tf 2.31.0 (with TensorFlow 2.11.0) | 209.2 | 2653MB | 26.93 |
-| **OpenNMT-py WMT14 model** | | | |
-| OpenNMT-py 3.0.4 (with PyTorch 1.13.1) | 275.8 | 2012MB | 26.77 |
-| - int8 | 323.3 | 1359MB | 26.72 |
-| CTranslate2 3.6.0 | 658.8 | 849MB | 26.77 |
-| - int16 | 733.0 | 672MB | 26.82 |
-| - int8 | 860.2 | 529MB | 26.78 |
-| - int8 + vmap | 1126.2 | 598MB | 26.64 |
-| **OPUS-MT model** | | | |
-| Transformers 4.26.1 (with PyTorch 1.13.1) | 147.3 | 2332MB | 27.90 |
-| Marian 1.11.0 | 344.5 | 7605MB | 27.93 |
-| - int16 | 330.2 | 5901MB | 27.65 |
-| - int8 | 355.8 | 4763MB | 27.27 |
-| CTranslate2 3.6.0 | 525.0 | 721MB | 27.92 |
-| - int16 | 596.1 | 660MB | 27.53 |
-| - int8 | 696.1 | 516MB | 27.65 |
+This fork just commented out everything related to bf16. I think an implicit conversion operator from 
+`__hip_bfloat16` to `float` is missing
 
-Executed with 4 threads on a [*c5.2xlarge*](https://aws.amazon.com/ec2/instance-types/c5/) Amazon EC2 instance equipped with an Intel(R) Xeon(R) Platinum 8275CL CPU.
+example error with bf16 enabled:
+```cpp
+CTranslate2/src/cuda/primitives.cu:284:19: error: no viable conversion from 'const __hip_bfloat16' to 'const float'
+  284 |       const float score = previous_scores[i];
+```
 
-#### GPU
+Other than that I **won't** be adding FA2 or AWQ support. It's written with assembly for cuda and it isn't helpful at all for my use case (whisper). Otherwise on this older commit (besides bf16) this fork is feature complete, so I might look into cleaning it up and possibilities of disabling these for ROCm on master for upstreaming. But I'll only do that **after BF16 gets proper support** since this discrepancy adds way too many different code paths between ROCm and CUDA. Other than that conversion worked quite well, I only had to change a couple defines, otherwise it hipified well. Only the `conv1d OP` required a custom implementation for MIOpen (hipDNN isn't maintained anymore).
 
-| | Tokens per second | Max. GPU memory | Max. CPU memory | BLEU |
-| --- | --- | --- | --- | --- |
-| **OpenNMT-tf WMT14 model** | | | | |
-| OpenNMT-tf 2.31.0 (with TensorFlow 2.11.0) | 1483.5 | 3031MB | 3122MB | 26.94 |
-| **OpenNMT-py WMT14 model** | | | | |
-| OpenNMT-py 3.0.4 (with PyTorch 1.13.1) | 1795.2 | 2973MB | 3099MB | 26.77 |
-| FasterTransformer 5.3 | 6979.0 | 2402MB | 1131MB | 26.77 |
-| - float16 | 8592.5 | 1360MB | 1135MB | 26.80 |
-| CTranslate2 3.6.0 | 6634.7 | 1261MB | 953MB | 26.77 |
-| - int8 | 8567.2 | 1005MB | 807MB | 26.85 |
-| - float16 | 10990.7 | 941MB | 807MB | 26.77 |
-| - int8 + float16 | 8725.4 | 813MB | 800MB | 26.83 |
-| **OPUS-MT model** | | | | |
-| Transformers 4.26.1 (with PyTorch 1.13.1) | 1022.9 | 4097MB | 2109MB | 27.90 |
-| Marian 1.11.0 | 3241.0 | 3381MB | 2156MB | 27.92 |
-| - float16 | 3962.4 | 3239MB | 1976MB | 27.94 |
-| CTranslate2 3.6.0 | 5876.4 | 1197MB | 754MB | 27.92 |
-| - int8 | 7521.9 | 1005MB | 792MB | 27.79 |
-| - float16 | 9296.7 | 909MB | 814MB | 27.90 |
-| - int8 + float16 | 8362.7 | 813MB | 766MB | 27.90 |
+## Tested libraries
 
-Executed with CUDA 11 on a [*g5.xlarge*](https://aws.amazon.com/ec2/instance-types/g5/) Amazon EC2 instance equipped with a NVIDIA A10G GPU (driver version: 510.47.03).
+### faster-whisper
+```bash
+pip install faster-whisper
 
-## Additional resources
+#1.0.3 was the most recent version when I made this, so try testing that one first if a newer one doesn't work
+#pip install faster-whisper==1.0.3
+```
 
-* [Documentation](https://opennmt.net/CTranslate2)
-* [Forum](https://forum.opennmt.net)
-* [Gitter](https://gitter.im/OpenNMT/CTranslate2)
+I included a small benchmark script in this CT2 fork. You need to download a test file from the faster whisper repo
+```bash
+wget -P "./tests/data" https://github.com/SYSTRAN/faster-whisper/raw/master/tests/data/physicsworks.wav 
+```
+
+Then you should be able to run. This per default does just one testrun with the medium model
+
+```bash
+python faster_whisper_bench.py
+```
+
+I'm getting around `10.9-11.0s` on my RX6800 (with model loading included `13.7-13.8s`).
+
+
+### whisperX
+
+System dependency is just ffmpeg. Either use your system package manager or with conda `conda install conda-forge::ffmpeg`
+
+```bash
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.1 --force-reinstall
+pip3 install transformers pandas nltk pyannote.audio==3.1.1 faster_whisper==1.0.1 -U
+pip3 install whisperX --no-deps
+```
+Python dependencies are a mess here since versions aren't really pinned and the image doesn't come with `torchaudio`. The commands above worked for me though, but will take a while since this reinstalls all python dependencies.
+
+For running you can use its great cli-tool by just using `whisperx path/to/audio` or running my little bench script for the `medium` model.
+
+```bash
+python whisperx_bench.py
+```
+
+this took around `4.1s` with language detection and around `3.94s` without.
+
+If you do get it running it's pretty fast. I excluded model load since that one takes quite a while. With model load it was only slightly faster than faster_whisper, but I think that's connected with the bunch of version conflicts I had. The main advantage of `whisperx` is its great feature set (Forced Alignment, VAD, Speaker Diarization) and the cli-tool (lots of output options), so do try and get it running it's worth it.
