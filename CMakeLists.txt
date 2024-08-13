@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.7)
-
+set(ROCM_CC "/opt/rocm/lib/llvm/bin/clang")
+set(ROCM_CXX "/opt/rocm/lib/llvm/bin/clang++")
+set(CMAKE_C_COMPILER ${ROCM_CC})
+set(CMAKE_CXX_COMPILER ${ROCM_CXX})
 # Set policy for setting the MSVC runtime library for static MSVC builds
 if(POLICY CMP0091)
   cmake_policy(SET CMP0091 NEW)
@@ -581,12 +584,10 @@ if (WITH_CUDA)
 endif()
 
 if (WITH_HIP)
-  set(ROCM_CC "/opt/rocm/lib/llvm/bin/clang")
-  set(ROCM_CXX "/opt/rocm/lib/llvm/bin/clang++")
-  set(CMAKE_C_COMPILER ${ROCM_CC})
-  set(CMAKE_CXX_COMPILER ${ROCM_CXX})
+
   enable_language(HIP)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
+  set(CMAKE_HIP_ARCHITECTURES "gfx1030")
   message(STATUS "HIP CC Compiler: ${ROCM_CC}")
   message(STATUS "HIP CXX Compiler: ${ROCM_CXX}")
   message(STATUS "CMAKE_HIP_ARCHITECTURES: ${CMAKE_HIP_ARCHITECTURES}")
@@ -602,6 +603,7 @@ if (WITH_HIP)
   find_package(hipblas REQUIRED)
   find_package(rocprim REQUIRED)
   find_package(rocthrust REQUIRED)
+  find_package(rocprim REQUIRED)
   find_package(hipcub REQUIRED)
   
   #TODO: properly separate files that need hip compiler

@@ -8,7 +8,7 @@
 #include <hip/hip_fp16.h>
 #include <hip/hip_bf16.h>
 
-#define __nv_bfloat16 hipblasBfloat16
+#define __nv_bfloat16 __hip_bfloat16
 __device__ inline void __syncwarp(uint32_t mask){} //TODO: 6.1 should have this but it doesn't?
 #else
 #include <cuda_fp16.h>

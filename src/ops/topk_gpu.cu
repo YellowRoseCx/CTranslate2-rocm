@@ -1,5 +1,6 @@
 #include "ctranslate2/ops/topk.h"
-
+#include <hip/hip_bfloat16.h>
+#include <limits>
 #include "cuda/utils.h"
 #include "cuda/helpers.h"
 
@@ -143,17 +144,16 @@ namespace fastertransformer {
   template <typename T>
   struct TopK {
     int p = NOT_FOUND;
-    T u = cub::FpLimits<T>::Lowest();
-
+    T u = -std::numeric_limits<float>::infinity(); // Use float -infinity
     __device__ __forceinline__ void insert(T elem, int elem_id) {
-      if (greater(elem, u)) {
-        u = elem;
-        p = elem_id;
-      }
+    if (elem > u) {
+      u = elem;
+      p = elem_id;
     }
+  }
 
     __device__ __forceinline__ void init() {
-      u = cub::FpLimits<T>::Lowest();
+      u = -std::numeric_limits<float>::infinity(); 
       p = NOT_FOUND;
     }
   };
@@ -199,7 +199,7 @@ namespace fastertransformer {
         topk_tmp_val_buf[index] = total.u;
         // If we found a max, blank out the value in the log prob array before starting the next iteration
         if (total.p != NOT_FOUND)
-          log_probs[total.p] = cub::FpLimits<T>::Lowest();
+          log_probs[total.p] = -std::numeric_limits<float>::infinity(); 
       }
       __syncthreads();
     }
@@ -245,7 +245,7 @@ namespace fastertransformer {
 
       if (tid == 0) {
         topks[ite] = total;
-        s_val[total.p] = cub::FpLimits<T>::Lowest();
+        s_val[total.p] = -std::numeric_limits<float>::infinity(); // Use -infinity 
       }
       __syncthreads();
     }

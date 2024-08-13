@@ -1,6 +1,7 @@
 #include "ctranslate2/primitives.h"
 
 #ifdef CT2_USE_HIP
+#define HIPBLAS_BFLOAT16_CLASS // define before hipblas.h
 #include <hip/hip_runtime.h>
 #include <hipblas/hipblas.h>
 #define cudaMemcpyAsync hipMemcpyAsync
@@ -543,6 +544,7 @@ namespace ctranslate2 {
                                       bfloat16_t* c, dim_t ldc,
                                       const bfloat16_t*) {
     // cuBLAS assumes column-major storage, so swap a and b accordingly.
+    hipblasComputeType_t compute_type = HIPBLAS_COMPUTE_32F;
     CUBLAS_CHECK(cublasGemmEx(cuda::get_cublas_handle(),
                               transpose_b ? CUBLAS_OP_T : CUBLAS_OP_N,
                               transpose_a ? CUBLAS_OP_T : CUBLAS_OP_N,
@@ -552,7 +554,7 @@ namespace ctranslate2 {
                               a, CUDA_R_16BF, lda,
                               &beta,
                               c, CUDA_R_16BF, ldc,
-                              CUDA_R_32F,
+                              compute_type,
                               CUBLAS_GEMM_DEFAULT_TENSOR_OP));
   }
 #endif
@@ -658,6 +660,7 @@ namespace ctranslate2 {
                                                     bfloat16_t* c, dim_t ldc, dim_t stridec,
                                                     dim_t batch_size) {
     // cuBLAS assumes column-major storage, so swap a and b accordingly.
+    hipblasComputeType_t compute_type = HIPBLAS_COMPUTE_32F;
     CUBLAS_CHECK(cublasGemmStridedBatchedEx(cuda::get_cublas_handle(),
                                             transpose_b ? CUBLAS_OP_T : CUBLAS_OP_N,
                                             transpose_a ? CUBLAS_OP_T : CUBLAS_OP_N,
@@ -668,7 +671,7 @@ namespace ctranslate2 {
                                             &beta,
                                             c, CUDA_R_16BF, ldc, stridec,
                                             batch_size,
-                                            CUDA_R_32F,
+                                            compute_type,
                                             CUBLAS_GEMM_DEFAULT_TENSOR_OP));
   }
 #endif

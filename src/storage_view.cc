@@ -102,9 +102,7 @@ namespace ctranslate2 {
     } else if (_dtype == DataType::FLOAT16 && dtype == DataType::FLOAT32) {
       DEVICE_DISPATCH(_device,
                       primitives<D>::convert(data<float16_t>(), converted.data<float>(), _size));
-    } 
-    #ifndef CT2_USE_HIP
-      else if (_dtype == DataType::FLOAT32 && dtype == DataType::BFLOAT16) {
+    } else if (_dtype == DataType::FLOAT32 && dtype == DataType::BFLOAT16) {
       DEVICE_DISPATCH(_device,
                       primitives<D>::convert(data<float>(), converted.data<bfloat16_t>(), _size));
     } else if (_dtype == DataType::BFLOAT16 && dtype == DataType::FLOAT32) {
@@ -116,9 +114,7 @@ namespace ctranslate2 {
     } else if (_dtype == DataType::FLOAT16 && dtype == DataType::BFLOAT16) {
       DEVICE_DISPATCH(_device,
                       primitives<D>::convert(data<float16_t>(), converted.data<bfloat16_t>(), _size));
-    }
-    #endif
-    else {
+    } else {
       // TODO: support other conversions.
       throw std::invalid_argument("Conversion from " + dtype_name(_dtype)
                                   + " to " + dtype_name(dtype) + " is not yet implemented");
