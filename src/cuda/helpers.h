@@ -21,7 +21,7 @@ __device__ inline void __syncwarp(uint32_t mask){} //TODO: 6.1 should have this 
 
 #ifdef CT2_USE_HIP
   #define CUDA_CAN_USE_HALF 1 //TODO: check for what supports this
-  #define CUDA_CAN_USE_BF16_MATH 0
+  #define CUDA_CAN_USE_BF16_MATH 1
 #else
   #if !defined(__CUDACC__) || !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 530
   #  define CUDA_CAN_USE_HALF 1
