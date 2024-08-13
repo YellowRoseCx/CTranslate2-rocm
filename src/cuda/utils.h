@@ -3,6 +3,7 @@
 #include <string>
 
 #ifdef CT2_USE_HIP
+#define HIPBLAS_BFLOAT16_CLASS // define before hipblas.h
 #include <hip/hip_runtime.h>
 #include <hipblas/hipblas.h>
 #include <thrust/execution_policy.h>
